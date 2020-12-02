@@ -15,6 +15,7 @@ import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
 @Controller
@@ -90,13 +91,17 @@ public class ProjectController {
         List<ProjectDTO> list = projectService
                 .findAll().stream()
                 .filter(each -> each.getAssignedManager().equals(manager))
-                .map(each -> {
-                    List<TaskDTO> taskList = taskService.findTaskByManager(manager);
-                    int completeCount =(int) taskList.stream().filter(t -> t.getProject().equals(each) && t.getTaskStatus() == Status.COMPLETE).count();
-                    int inCompleteCount =(int) taskList.stream().filter(t -> t.getProject().equals(each) && t.getTaskStatus() != Status.COMPLETE).count();
-                    each.setUnfinishedTaskCounts(inCompleteCount);
-                    each.setCompleteTaskCounts(completeCount);
-                    return each;
+                .peek(projectDTO -> {
+                    int completeCount = (int) taskService.findAll().stream()
+                            .filter(task -> task.getProject().equals(projectDTO) && task.getTaskStatus() == Status.COMPLETE)
+                            .count();
+                    int inCompleteCount = (int) taskService.findAll().stream()
+                            .filter(task -> task.getProject().equals(projectDTO) && task.getTaskStatus() != Status.COMPLETE)
+                            .count();
+
+                    projectDTO.setCompleteTaskCounts(completeCount);
+                    projectDTO.setUnfinishedTaskCounts(inCompleteCount);
+
                 }).collect(Collectors.toList());
         return list;
     }
